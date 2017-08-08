@@ -1,7 +1,7 @@
 var fs = require('fs');
 
 var appName = 'Ditto';
-var MARKERS = [];
+// var MARKERS = [];
 const TYPES = [
   'Armchair',
   'Bedframe',
@@ -142,37 +142,44 @@ var pinterest = pinterestAPI('carlos_cerqueira');
  
  
 pinterest.getBoards(true, function (boards) {
-   console.log('Your boards are: ');
-   console.log();
-   console.log(boards.data);
-   console.log();
+  var boards = boards.data;
 
-});
-// Get pins from a board (second parameter determines whether you want the results paginated and to include some metadata) 
-pinterest.getPinsFromBoard('dream-livingroom', true, function (pins) {
-    console.log('Your pins are: ');
-    console.log();
-    extractPins(pins);
-    mapPins();
+  console.log('Board number: ' + boards.length);
+  console.log();
+
+  for (var i = 0; i < boards.length; i++) {
+   let board = boards[i].href.split('/')[2]; // we ensure name of the board
+   getPinsFromBoard(board);
+  }
 });
 
-function extractPins(pins) {
+function getPinsFromBoard(boardName) {
+  // Get pins from a board (second parameter determines whether you want the results paginated and to include some metadata) 
+  pinterest.getPinsFromBoard(boardName, true, function (pins) {
+      // console.log('Your pins are: ');
+      // console.log();
+      extractPins(pins, boardName);
+  });
+}
+
+function extractPins(pins, boardName) {
   var pins = pins.data;
+  var markers = [];
   
   for (var i = 0; i < pins.length; i++) {
     
     let pin = {};
+    pin.board = boardName;
     pin.id = pins[i].id;
     pin.description = pins[i].description;
     pin.dominant_color = pins[i].dominant_color;
     pin.link = pins[i].link;
-    console.log(pins[i].images);
     pin.imageUrl = pins[i].images['237x'].url;
     pin.imageW = pins[i].images['237x'].width;
     pin.imageH = pins[i].images['237x'].height;
 
     
-    console.log('Pin number ' + i);
+    console.log('Pin number ' + pin.board + ' ' + i);
     console.log('ID ' + pins[i].id);
     console.log('Description ' + pins[i].description);
     console.log('Dominant Color ' + pins[i].dominant_color);
@@ -180,9 +187,9 @@ function extractPins(pins) {
     console.log('Images ' + pins[i].images);
     console.log();
 
-    MARKERS.push(pin);
+    markers.push(pin);
   }
-  
+  mapPins(markers);
 }
 
 function mapTypes(words) {
@@ -255,29 +262,29 @@ function mapStyles(words) {
   }
 }
 
-function mapPins() {
-  for (var i = 0; i < MARKERS.length; i++) {
+function mapPins(markers) {
+  for (var i = 0; i < markers.length; i++) {
     
-    MARKERS[i].type = 'N/A';
-    MARKERS[i].color = 'N/A';
-    MARKERS[i].texture = 'N/A';
-    MARKERS[i].size = 'N/A';
-    MARKERS[i].material = 'N/A';
-    MARKERS[i].functionality = 'N/A';
-    MARKERS[i].style = 'N/A';
+    markers[i].type = 'N/A';
+    markers[i].color = 'N/A';
+    markers[i].texture = 'N/A';
+    markers[i].size = 'N/A';
+    markers[i].material = 'N/A';
+    markers[i].functionality = 'N/A';
+    markers[i].style = 'N/A';
 
-    var wordsDescp = MARKERS[i].description.split(' ');
-    MARKERS[i].type = mapTypes(wordsDescp);
-    MARKERS[i].color = mapColors(wordsDescp);
-    MARKERS[i].texture = mapTextures(wordsDescp);
-    MARKERS[i].size = mapSizes(wordsDescp);
-    MARKERS[i].material = mapMaterials(wordsDescp);
-    MARKERS[i].functionality = mapFunctions(wordsDescp);
-    MARKERS[i].style = mapStyles(wordsDescp);
+    var wordsDescp = markers[i].description.split(' ');
+    markers[i].type = mapTypes(wordsDescp);
+    markers[i].color = mapColors(wordsDescp);
+    markers[i].texture = mapTextures(wordsDescp);
+    markers[i].size = mapSizes(wordsDescp);
+    markers[i].material = mapMaterials(wordsDescp);
+    markers[i].functionality = mapFunctions(wordsDescp);
+    markers[i].style = mapStyles(wordsDescp);
     
-    writeFile(csv(MARKERS[i]));
+    writeFile(csv(markers[i]));
   }
-  // console.log(MARKERS);
+  // console.log(markers);
 }
 
 function csv(dict) {
@@ -290,8 +297,9 @@ function writeFile(data) {
   var fileName = 'map.csv';
   
   if (!fs.existsSync(fileName)) {
-    fs.appendFileSync(fileName, 'ID, DESCRIPTION, DOMINANT COLOR, LINK, IMAGE URL, ' +
-    'IMAGE WIDTH, IMAGE HEIGH, TYPE, COLOR, TEXTURE, SIZE, MATERIAL, FUNCTION, STYLE' + '\r\n');
+    fs.appendFileSync(fileName, 'BOARD, ID, DESCRIPTION, DOMINANT COLOR, LINK, IMAGE URL, ' +
+    'IMAGE WIDTH, IMAGE HEIGH, TYPE, COLOR, TEXTURE, SIZE, MATERIAL, FUNCTION, STYLE' +
+    '\r\n');
   }
   fs.appendFileSync(fileName, data + '\r\n');
 
