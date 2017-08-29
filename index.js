@@ -1,18 +1,23 @@
-var fs = require('fs');
+const fs = require('fs');
+const pinterestAPI = require('pinterest-api');
 
-var appName = 'Ditto';
-// var MARKERS = [];
+const appName = 'Ditto';
+// var MARKERS_DATA_FILE = [];
 const TYPES = [
   'Armchair',
+  'Art',
   'Bedframe',
   'Bench',
   'Blanket',
+  'Cabinet',
   'Chair',
   'Chaise',
   'Chandelier',
   'Coffe Table',
-  'Couch',
+  'Cushion',
   'Curtains',
+  'Dining Chair',
+  'Dining Storage',
   'Dining Table',
   'Dresser',
   'Duvet',
@@ -24,20 +29,28 @@ const TYPES = [
   'Nightstand',
   'Ottoman',
   'Paint',
+  'Photograph',
   'Picture Frame',
   'Pillow',
+  'Plant',
   'Rug',
+  'Shelf',
+  'Side Board',
   'Side Table',
+  'Sofa',
   'Tablewear',
   'Vase',
-  'Wallpaper'
+  'Wallpaper',
 ];
 
 const COLORS = [
   'Beige',
   'Black',
+  'Black-Brown',
   'Blue',
   'Brown',
+  'Clear',
+  'Copper',
   'Cream',
   'Dusty Pink',
   'Gold',
@@ -45,9 +58,12 @@ const COLORS = [
   'Grey',
   'Indigo',
   'Lavender',
+  'Multi-colour',
   'Neutral',
   'Orange',
   'Purple',
+  'Red',
+  'Red-Brown',
   'Silver',
   'Sky Blue',
   'Tan',
@@ -61,12 +77,13 @@ const TEXTURES = [
   'Furry',
   'Plush',
   'Quilted',
+  'Patterned',
   'Reflective',
   'Rough',
   'Smooth',
   'Soft',
   'Stained',
-  'Weathered'
+  'Weathered',
 ];
 const SIZES = [
   'XS',
@@ -74,15 +91,16 @@ const SIZES = [
   'M',
   'L',
   'XL',
-  'small',
-  'extra small',
-  'medium',
-  'large',
-  'extra large'
+  'Extra Small',
+  'Small',
+  'Medium',
+  'Large',
+  'Extra Large',
 ];
 
 const MATERIALS = [
   'Bamboo',
+  'Barnwood',
   'Brass',
   'Brick',
   'Burlap',
@@ -93,13 +111,17 @@ const MATERIALS = [
   'Glass',
   'Knit',
   'Leather',
+  'Marble',
+  'Metal',
   'Mirror',
+  'Plastic',
   'Silk',
   'Steel',
   'Stone',
   'Velvet',
   'Wire',
-  'Wood'
+  'Wood',
+  'Wool',
 ];
 
 const FUNCTIONS = [
@@ -111,81 +133,96 @@ const FUNCTIONS = [
 ];
 
 const STYLES = [
-  'Bamboo',
-  'Brass',
-  'Brick',
-  'Burlap',
-  'Canvas',
-  'Ceramic',
-  'Cotton',
-  'Fur',
-  'Glass',
-  'Knit',
-  'Leather',
-  'Mirror',
-  'Silk',
-  'Steel',
-  'Stone',
-  'Velvet', 
-  'Wire', 
-  'Wood'
+  'Antique',
+  'Bohemian',
+  'Bright',
+  'Chic',
+  'Classic',
+  'Clean',
+  'Country',
+  'Cozy',
+  'Exotic',
+  'Feminine',
+  'Fresh',
+  'Funky',
+  'Geometric',
+  'Industrial',
+  'Masculine',
+  'Minimalist',
+  'Modern',
+  'Polished',
+  'Posh',
+  'Organic',
+  'Rustic',
+  'Simple',
+  'Sleek',
+  'Vintage',
 ];
 
-console.log('Welcome to ' + appName);
-console.log();
+console.log(`Welcome to ${appName}`);
 
-// import 
-var pinterestAPI = require('pinterest-api');
- 
-// Create a new object and set the accountname 
-var pinterest = pinterestAPI('carlos_cerqueira');
- 
- 
-pinterest.getBoards(true, function (boards) {
-  var boards = boards.data;
+if (!process.env.PIN_USERNAME || !process.env.BOARDS || process.env.BOARDS === '' ||
+    process.env.PIN_USERNAME === '') {
+  console.error('Error :: Missing parameters (PIN_USERNAME or BOARDS).');
+  return;
+}
 
-  console.log('Board number: ' + boards.length);
-  console.log();
+const PIN_USERNAME = process.env.PIN_USERNAME.trim().toLowerCase();
+const USER_BOARDS = process.env.BOARDS.split(',');
+console.log(`Username: ${PIN_USERNAME} Boards: ${USER_BOARDS}`);
 
-  for (var i = 0; i < boards.length; i++) {
-   let board = boards[i].href.split('/')[2]; // we ensure name of the board
-   getPinsFromBoard(board);
-  }
-});
+// Create a new object and set the accountname
+// var pinterest = pinterestAPI('carlos_cerqueira');
+const pinterest = pinterestAPI(PIN_USERNAME);
+
+if (process.env.GET_BOARDS) {
+  pinterest.getBoards(true, (boards) => {
+    var boards = boards.data;
+
+    console.log(`Number of Boards: ${boards.length}`);
+    console.log(boards);
+
+    // for (var i = 0; i < boards.length; i++) {
+    //  let board = boards[i].href.split('/')[2]; // we ensure name of the board
+    //  getPinsFromBoard(board);
+    // }
+  });
+}
+
+for (let i = 0; i < USER_BOARDS.length; i++) {
+  console.log(`Processing.. ${i + 1}/${USER_BOARDS.length}`);
+  getPinsFromBoard(USER_BOARDS[i].trim().toLowerCase());
+}
 
 function getPinsFromBoard(boardName) {
-  // Get pins from a board (second parameter determines whether you want the results paginated and to include some metadata) 
-  pinterest.getPinsFromBoard(boardName, true, function (pins) {
-      // console.log('Your pins are: ');
-      // console.log();
-      extractPins(pins, boardName);
+  // Get pins from a board (second parameter determines whether you want the results paginated and to include some metadata)
+  pinterest.getPinsFromBoard(boardName, true, (pins) => {
+    extractPins(pins, boardName);
   });
 }
 
 function extractPins(pins, boardName) {
   var pins = pins.data;
-  var markers = [];
-  
-  for (var i = 0; i < pins.length; i++) {
-    
+  let markers = [];
+
+  for (let i = 0; i < pins.length; i++) {
     let pin = {};
     pin.board = boardName;
     pin.id = pins[i].id;
-    pin.description = pins[i].description;
+    pin.description = pins[i].description.replace(/,/g, '');
     pin.dominant_color = pins[i].dominant_color;
     pin.link = pins[i].link;
     pin.imageUrl = pins[i].images['237x'].url;
     pin.imageW = pins[i].images['237x'].width;
     pin.imageH = pins[i].images['237x'].height;
 
-    
-    console.log('Pin number ' + pin.board + ' ' + i);
-    console.log('ID ' + pins[i].id);
-    console.log('Description ' + pins[i].description);
-    console.log('Dominant Color ' + pins[i].dominant_color);
-    console.log('Link ' + pins[i].link);
-    console.log('Images ' + pins[i].images);
-    console.log();
+    // console.log('Pin number ' + pin.board + ' ' + i);
+    // console.log('ID ' + pins[i].id);
+    // console.log('Description ' + pins[i].description);
+    // console.log('Dominant Color ' + pins[i].dominant_color);
+    // console.log('Link ' + pins[i].link);
+    // console.log('Images ' + pins[i].images);
+    // console.log();
 
     markers.push(pin);
   }
@@ -193,9 +230,9 @@ function extractPins(pins, boardName) {
 }
 
 function mapTypes(words) {
-  for (var i = 0; i < words.length; i++) {
-    for (var j = 0; j < TYPES.length; j++) {
-      if (words[i].toLowerCase() === TYPES[j].toLowerCase()) {    
+  for (let i = 0; i < words.length; i++) {
+    for (let j = 0; j < TYPES.length; j++) {
+      if (words[i].toLowerCase() === TYPES[j].toLowerCase()) {
         return TYPES[j];
       }
     }
@@ -203,19 +240,19 @@ function mapTypes(words) {
 }
 
 function mapColors(words) {
-  for (var i = 0; i < words.length; i++) {
-    for (var j = 0; j < COLORS.length; j++) {
-      if (words[i].toLowerCase() === COLORS[j].toLowerCase()) {    
+  for (let i = 0; i < words.length; i++) {
+    for (let j = 0; j < COLORS.length; j++) {
+      if (words[i].toLowerCase() === COLORS[j].toLowerCase()) {
         return COLORS[j];
       }
     }
   }
-}  
+}
 
 function mapTextures(words) {
-  for (var i = 0; i < words.length; i++) {
-    for (var j = 0; j < TEXTURES.length; j++) {
-      if (words[i].toLowerCase() === TEXTURES[j].toLowerCase()) {    
+  for (let i = 0; i < words.length; i++) {
+    for (let j = 0; j < TEXTURES.length; j++) {
+      if (words[i].toLowerCase() === TEXTURES[j].toLowerCase()) {
         return TEXTURES[j];
       }
     }
@@ -223,9 +260,9 @@ function mapTextures(words) {
 }
 
 function mapSizes(words) {
-  for (var i = 0; i < words.length; i++) {
-    for (var j = 0; j < SIZES.length; j++) {
-      if (words[i].toLowerCase() === SIZES[j].toLowerCase()) {    
+  for (let i = 0; i < words.length; i++) {
+    for (let j = 0; j < SIZES.length; j++) {
+      if (words[i].toLowerCase() === SIZES[j].toLowerCase()) {
         return SIZES[j];
       }
     }
@@ -233,9 +270,9 @@ function mapSizes(words) {
 }
 
 function mapMaterials(words) {
-  for (var i = 0; i < words.length; i++) {
-    for (var j = 0; j < MATERIALS.length; j++) {
-      if (words[i].toLowerCase() === MATERIALS[j].toLowerCase()) {    
+  for (let i = 0; i < words.length; i++) {
+    for (let j = 0; j < MATERIALS.length; j++) {
+      if (words[i].toLowerCase() === MATERIALS[j].toLowerCase()) {
         return MATERIALS[j];
       }
     }
@@ -243,9 +280,9 @@ function mapMaterials(words) {
 }
 
 function mapFunctions(words) {
-  for (var i = 0; i < words.length; i++) {
-    for (var j = 0; j < FUNCTIONS.length; j++) {
-      if (words[i].toLowerCase() === FUNCTIONS[j].toLowerCase()) {    
+  for (let i = 0; i < words.length; i++) {
+    for (let j = 0; j < FUNCTIONS.length; j++) {
+      if (words[i].toLowerCase() === FUNCTIONS[j].toLowerCase()) {
         return FUNCTIONS[j];
       }
     }
@@ -253,9 +290,9 @@ function mapFunctions(words) {
 }
 
 function mapStyles(words) {
-  for (var i = 0; i < words.length; i++) {
-    for (var j = 0; j < STYLES.length; j++) {
-      if (words[i].toLowerCase() === STYLES[j].toLowerCase()) {    
+  for (let i = 0; i < words.length; i++) {
+    for (let j = 0; j < STYLES.length; j++) {
+      if (words[i].toLowerCase() === STYLES[j].toLowerCase()) {
         return STYLES[j];
       }
     }
@@ -263,8 +300,7 @@ function mapStyles(words) {
 }
 
 function mapPins(markers) {
-  for (var i = 0; i < markers.length; i++) {
-    
+  for (let i = 0; i < markers.length; i++) {
     markers[i].type = 'N/A';
     markers[i].color = 'N/A';
     markers[i].texture = 'N/A';
@@ -273,7 +309,7 @@ function mapPins(markers) {
     markers[i].functionality = 'N/A';
     markers[i].style = 'N/A';
 
-    var wordsDescp = markers[i].description.split(' ');
+    let wordsDescp = markers[i].description.split(' ');
     markers[i].type = mapTypes(wordsDescp);
     markers[i].color = mapColors(wordsDescp);
     markers[i].texture = mapTextures(wordsDescp);
@@ -281,26 +317,23 @@ function mapPins(markers) {
     markers[i].material = mapMaterials(wordsDescp);
     markers[i].functionality = mapFunctions(wordsDescp);
     markers[i].style = mapStyles(wordsDescp);
-    
+
     writeFile(csv(markers[i]));
   }
   // console.log(markers);
 }
 
 function csv(dict) {
-  return Object.keys(dict).map(function(k){
-    return dict[k];
-  }).join(',');
+  return Object.keys(dict).map((k) => dict[k]).join(',');
 }
 
 function writeFile(data) {
-  var fileName = 'map.csv';
-  
+  const fileName = 'map.csv';
+
   if (!fs.existsSync(fileName)) {
     fs.appendFileSync(fileName, 'BOARD, ID, DESCRIPTION, DOMINANT COLOR, LINK, IMAGE URL, ' +
     'IMAGE WIDTH, IMAGE HEIGH, TYPE, COLOR, TEXTURE, SIZE, MATERIAL, FUNCTION, STYLE' +
     '\r\n');
   }
-  fs.appendFileSync(fileName, data + '\r\n');
-
+  fs.appendFileSync(fileName, `${data}\r\n`);
 }
